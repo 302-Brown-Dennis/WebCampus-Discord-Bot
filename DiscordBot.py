@@ -1,16 +1,25 @@
+from os import getenv
+from dotenv import load_dotenv
+
 import discord
 from discord.ext import commands
+from discord.ui import View, Button, Select
 
 # Set up the bot
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+load_dotenv()
+
 channel_preferences = {}
+
 
 # Event: Bot is ready
 @bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}!")
+
 
 #
 # DENNIS
@@ -41,6 +50,7 @@ async def on_guild_join(guild):
         )
         await default_channel.send(help_message)
 
+
 # dev clear command
 @bot.command()
 @commands.has_permissions(manage_messages=True)
@@ -49,8 +59,9 @@ async def clear(ctx, amount: int):
     DEV USE, deletes a specified amount of messages.
     Usage: !clear <amount> where amount is an int for number of messages to delete, side note max delete amount is 100
     """
-    deleted = await ctx.channel.purge(limit=amount+1)
+    deleted = await ctx.channel.purge(limit=amount + 1)
     await ctx.send(f'Deleted {len(deleted)} messages.', delete_after=2)
+
 
 # DEV gets number of message in channel
 @bot.command()
@@ -68,6 +79,7 @@ async def count_messages(ctx, channel: discord.TextChannel = None):
 
     await ctx.send(f"There are {count} messages in {channel.mention}.")
 
+
 # test hello command
 @bot.command()
 async def hello(ctx):
@@ -76,6 +88,7 @@ async def hello(ctx):
     Usage: !hello
     """
     await ctx.send(f"Hello, {ctx.author.name}!")
+
 
 # set_preferences command
 @bot.command()
@@ -98,16 +111,19 @@ async def set_preferences(ctx, *preferences):
     channel_preferences[channel_id] = selected_preferences
     await ctx.send(f"Preferences for this channel updated: {', '.join(selected_preferences)}")
 
+
 # view_preferences command
 @bot.command()
 async def view_preferences(ctx):
     """
     View preferences set for this channel.
     Usage: !view_preferences
-    """  
+    """
     channel_id = ctx.channel.id
     preferences = channel_preferences.get(channel_id, "None set")
-    await ctx.send(f"Current preferences for this channel: {', '.join(preferences) if preferences != 'None set' else preferences}")
+    await ctx.send(
+        f"Current preferences for this channel: {', '.join(preferences) if preferences != 'None set' else preferences}")
+
 
 # available_preferences command
 @bot.command()
@@ -115,9 +131,10 @@ async def available_preferences(ctx):
     """
     View the available preferences to set.
     Usage: !available_preferences
-    """  
+    """
     valid_preferences = {"grades", "announcements", "messages"}
     await ctx.send(f"Available preferences to set: {', '.join(valid_preferences)}")
+
 
 # get_classes command
 # have to hard code this for now
@@ -126,7 +143,7 @@ async def get_classes(ctx):
     """
     View your current classes.
     Usage: !get_classes
-    """  
+    """
     await ctx.send("Your current classes are:\n"
                    "CS 420 Human Computer Interaction\n"
                    "CS 457 Database Management Systems\n"
@@ -134,27 +151,29 @@ async def get_classes(ctx):
                    "CS 474 Image Processing and Interpretation\n"
                    "CPE 470 Auto Mobile Robots\n"
                    )
-    
+
+
 # hard coded command for new grade
 @bot.command()
 async def test_grade(ctx):
     """
     test grades.
     Usage: !test_grade
-    """  
+    """
     await ctx.send("Your CS 420 assignment Project Part #2: Discovery & Specification was graded!\n"
                    "You received a 93/100 (93%)!\n"
                    "Click the link below to be taken to the assignment.\n"
                    "https://webcampus.unr.edu/courses/113486/assignments/1458290/submissions/125446\n"
                    )
-    
+
+
 # hard coded command for assignment submissions
 @bot.command()
 async def test_submit(ctx):
     """
     test assignment submit.
     Usage: !test_submit
-    """  
+    """
     await ctx.send("Your assignment 'Project Part #3 Design'\n"
                    "For CS 420 Human Computer Interaction\n"
                    "Was succesfully submitted at 5:16 PM on 11/26/2024!\n"
@@ -162,13 +181,14 @@ async def test_submit(ctx):
                    "https://webcampus.unr.edu/courses/113486/assignments/1458290/submissions/125446\n"
                    )
 
+
 # hard coded command for announcments
 @bot.command()
 async def test_announce(ctx):
     """
     test announcments.
     Usage: !test_announce
-    """  
+    """
     await ctx.send("You have a new announcement from CS 420 Human Computer Interaction.\n\n"
                    "From: Sergiu Dascalu\n"
                    "Subject: CS 420/620 midterm exam tomorrow, WED November 20, from 4:00 pm\n"
@@ -177,18 +197,20 @@ async def test_announce(ctx):
                    "https://webcampus.unr.edu/courses/113486/discussion_topics/1135299\n"
                    )
 
+
 # hard coded command that gets current gpa from classes
 @bot.command()
 async def test_remind(ctx):
     """
     test assignment reminder.
     Usage: !test_remind
-    """  
+    """
     await ctx.send("REMINDER!\n"
                    "Your assignment 'Project Part #3 Design'\n"
                    "For CS 420 Human Computer Interaction\n"
                    "Is due tomorrow 11/26/2024 at 11:59 PM!\n"
-                  )
+                   )
+
 
 # hard coded command for getting class grade
 @bot.command()
@@ -196,10 +218,10 @@ async def get_class_grade(ctx, *, class_name: str = None):
     """
     Gets your grade for a class.
     Usage: !get_class_grade <Class name> Example: !get_class_grade CPE 470 Auto Mobile Robots
-    """  
+    """
     if not class_name:
         await ctx.send("Please provide a class name")
-        return       
+        return
     if class_name.lower() == "cs 420 human computer interaction":
         await ctx.send("Your current grade for CS 420 Human Computer Interaction is: 95.64% (A)\n")
     if class_name.lower() == "cs 457 database management systems":
@@ -207,14 +229,218 @@ async def get_class_grade(ctx, *, class_name: str = None):
     if class_name.lower() == "cpe 470 auto mobile robots":
         await ctx.send("Your current grade for CPE 470 Auto Mobile Robots is: 109.32% (A)\n")
 
+
 # hard coded command that gets current gpa from classes
 @bot.command()
 async def get_gpa(ctx):
     """
     Calcualtes your current gpa from your classes.
     Usage: !get_gpa
-    """  
+    """
     await ctx.send("Your current GPA is: 3.26")
 
+# Fake Grades for each class
+grades = {
+    "CS 420 Human Computer Interaction": "95.64% (A)",
+    "CS 457 Database Management Systems": "91.9% (A)",
+    "CS 458 Introduction to Data Mining": "88.5% (B+)",
+    "CPE 470 Auto Mobile Robots": "92.0% (A-)"
+}
+
+# Event: Bot is ready
+@bot.event
+async def on_ready():
+    print(f"Logged in as {bot.user}!")
+
+# View for Main Menu
+class MainMenu(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.add_item(GradeButton())
+        self.add_item(PreferencesButton())
+        self.add_item(ClassesButton())
+
+# Grade Button
+class GradeButton(Button):
+    def __init__(self):
+        super().__init__(label="Grades", style=discord.ButtonStyle.primary)
+
+    async def callback(self, interaction: discord.Interaction):
+        # Create an embed for grades
+        embed = discord.Embed(
+            title="Grade Options",
+            description=(
+                "Select a class below to see your grade:\n"
+                "- View a specific class grade\n"
+                "- Calculate GPA\n"
+                "- Check recent grades\n"
+            ),
+            color=discord.Color.blue(),
+        )
+
+        # Create the Select menu with the list of classes
+        select = ClassSelectMenu()
+
+        # Add the Select menu to the view
+        grade_view = View(timeout=None)
+        grade_view.add_item(select)
+        grade_view.add_item(GetGPAButton())
+        grade_view.add_item(BackToMenuButton())
+
+        await interaction.response.edit_message(embed=embed, view=grade_view)
+
+# Select Menu for Classes
+class ClassSelectMenu(Select):
+    def __init__(self):
+        options = [
+            discord.SelectOption(label="CS 420 Human Computer Interaction"),
+            discord.SelectOption(label="CS 457 Database Management Systems"),
+            discord.SelectOption(label="CS 458 Introduction to Data Mining"),
+            discord.SelectOption(label="CPE 470 Auto Mobile Robots")
+        ]
+        super().__init__(placeholder="Choose a class...", min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        # Get the selected class from the dropdown
+        selected_class = self.values[0]
+        grade = grades.get(selected_class, "Class not found.")
+
+        # Send the grade for the selected class as an ephemeral (whisper) message
+        await interaction.response.send_message(f"The grade for `{selected_class}` is: {grade}", ephemeral=True)
+
+# Get GPA Button
+class GetGPAButton(Button):
+    def __init__(self):
+        super().__init__(label="Calculate GPA", style=discord.ButtonStyle.secondary)
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.send_message(
+            "Your current GPA is: 3.26",
+            ephemeral=True,
+        )
+
+# Preferences Button
+class PreferencesButton(Button):
+    def __init__(self):
+        super().__init__(label="Preferences", style=discord.ButtonStyle.primary)
+
+    async def callback(self, interaction: discord.Interaction):
+        # Create an embed for preferences
+        embed = discord.Embed(
+            title="Notification Preferences",
+            description=(
+                "Choose your notification preferences:\n"
+                "- Grades\n"
+                "- Announcements\n"
+                "- Messages\n"
+            ),
+            color=discord.Color.green(),
+        )
+
+        # Add Preferences-specific Buttons
+        preferences_view = View(timeout=None)
+        preferences_view.add_item(SetPreferencesButton())
+        preferences_view.add_item(ViewPreferencesButton())
+        preferences_view.add_item(BackToMenuButton())
+
+        await interaction.response.edit_message(embed=embed, view=preferences_view)
+
+# Set Preferences Button
+class SetPreferencesButton(Button):
+    def __init__(self):
+        super().__init__(label="Set Preferences", style=discord.ButtonStyle.secondary)
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.send_message(
+            "To set preferences, type `!set_preferences <options>`. To see available preferences use `!available_preferences`.",
+            ephemeral=True,
+        )
+
+# View Preferences Button
+class ViewPreferencesButton(Button):
+    def __init__(self):
+        super().__init__(label="View Preferences", style=discord.ButtonStyle.secondary)
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.send_message(
+            "Current preferences: Grades, Announcements",
+            ephemeral=True,
+        )
+
+# Classes Button
+class ClassesButton(Button):
+    def __init__(self):
+        super().__init__(label="Classes", style=discord.ButtonStyle.primary)
+
+    async def callback(self, interaction: discord.Interaction):
+        # Create an embed for classes
+        embed = discord.Embed(
+            title="Class Options",
+            description=(
+                "Choose an action related to your classes:\n"
+                "- View current classes\n"
+                "- View assignments\n"
+            ),
+            color=discord.Color.purple(),
+        )
+
+        # Add Classes-specific Buttons
+        class_view = View(timeout=None)
+        class_view.add_item(ViewClassesButton())
+        class_view.add_item(BackToMenuButton())
+
+        await interaction.response.edit_message(embed=embed, view=class_view)
+
+# View Classes Button
+class ViewClassesButton(Button):
+    def __init__(self):
+        super().__init__(label="View Classes", style=discord.ButtonStyle.secondary)
+
+    async def callback(self, interaction: discord.Interaction):
+        await interaction.response.send_message(
+            "Your current classes are:\n"
+            "- CS 420 Human Computer Interaction\n"
+            "- CS 457 Database Management Systems\n"
+            "- CS 458 Introduction to Data Mining\n"
+            "- CPE 470 Auto Mobile Robots",
+            ephemeral=True,
+        )
+
+# Back to Main Menu Button
+class BackToMenuButton(Button):
+    def __init__(self):
+        super().__init__(label="Back to Main Menu", style=discord.ButtonStyle.danger)
+
+    async def callback(self, interaction: discord.Interaction):
+        embed = discord.Embed(
+            title="Main Menu",
+            description=(
+                "Welcome to the bot! Use the buttons below to navigate:\n"
+                "- Grades\n"
+                "- Preferences\n"
+                "- Classes"
+            ),
+            color=discord.Color.gold(),
+        )
+        await interaction.response.edit_message(embed=embed, view=MainMenu())
+
+# Command: Start Menu
+@bot.command()
+async def menu(ctx):
+    """
+    Opens the main menu with buttons.
+    """
+    embed = discord.Embed(
+        title="Main Menu",
+        description=(
+            "Welcome to the bot! Use the buttons below to navigate:\n"
+            "- Grades\n"
+            "- Preferences\n"
+            "- Classes"
+        ),
+        color=discord.Color.gold(),
+    )
+    await ctx.send(embed=embed, view=MainMenu())
+
 # Run the bot
-bot.run("MTMxMDg3NDY5NjQ3NjI2MjQ0MA.GbjMHL.ZmeSN0zNEyblcl_WCX61r5Dm-F923NVtQBojIY")
+bot.run(getenv('BOT_TOKEN'))
