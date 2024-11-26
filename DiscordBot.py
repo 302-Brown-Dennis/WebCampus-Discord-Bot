@@ -162,6 +162,34 @@ async def test_submit(ctx):
                    "https://webcampus.unr.edu/courses/113486/assignments/1458290/submissions/125446\n"
                    )
 
+# hard coded command for announcments
+@bot.command()
+async def test_announce(ctx):
+    """
+    test announcments.
+    Usage: !test_announce
+    """  
+    await ctx.send("You have a new announcement from CS 420 Human Computer Interaction.\n\n"
+                   "From: Sergiu Dascalu\n"
+                   "Subject: CS 420/620 midterm exam tomorrow, WED November 20, from 4:00 pm\n"
+                   "Hi all, this is a just reminder the midterm test will take place tomorrow, WED Nov 20 from 4:00 pm, online (via Canvas). You might start it up to 20 minutes late without losing any of the allocated time (70 min for the regular, non-DRC extended test). S. Dascalu\n\n"
+                   "Click the link below to view the announcement\n"
+                   "https://webcampus.unr.edu/courses/113486/discussion_topics/1135299\n"
+                   )
+
+# hard coded command that gets current gpa from classes
+@bot.command()
+async def test_remind(ctx):
+    """
+    test assignment reminder.
+    Usage: !test_remind
+    """  
+    await ctx.send("REMINDER!\n"
+                   "Your assignment 'Project Part #3 Design'\n"
+                   "For CS 420 Human Computer Interaction\n"
+                   "Is due tomorrow 11/26/2024 at 11:59 PM!\n"
+                  )
+
 # hard coded command for getting class grade
 @bot.command()
 async def get_class_grade(ctx, *, class_name: str = None):
