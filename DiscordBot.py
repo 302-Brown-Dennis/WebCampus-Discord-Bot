@@ -111,7 +111,6 @@ async def get_classes(ctx):
     View your current classes.
     Usage: !get_classes
     """  
-    #current_classes = {"grades", "announcements", "messages"}
     await ctx.send("Your current classes are:\n"
                    "CS 420 Human Computer Interaction\n"
                    "CS 457 Database Management Systems\n"
@@ -127,7 +126,6 @@ async def test_grade(ctx):
     test grades.
     Usage: !test_grade
     """  
-    #current_classes = {"grades", "announcements", "messages"}
     await ctx.send("Your CS 420 assignment Project Part #2: Discovery & Specification was graded!\n"
                    "You received a 93/100 (93%)!\n"
                    "Click the link below to be taken to the assignment.\n"
