@@ -46,11 +46,27 @@ async def on_guild_join(guild):
 @commands.has_permissions(manage_messages=True)
 async def clear(ctx, amount: int):
     """
-    Development usage only, deletes a specified amount of messages.
+    DEV USE, deletes a specified amount of messages.
     Usage: !clear <amount> where amount is an int for number of messages to delete, side note max delete amount is 100
     """
     deleted = await ctx.channel.purge(limit=amount+1)
     await ctx.send(f'Deleted {len(deleted)} messages.', delete_after=2)
+
+# DEV gets number of message in channel
+@bot.command()
+async def count_messages(ctx, channel: discord.TextChannel = None):
+    """
+    DEV USE, counts the number of messages in a channel.
+    If no channel is specified, counts messages in the current channel.
+    Usage: !count_messages [#channel]
+    """
+    channel = channel or ctx.channel  # Use the specified channel or the current channel
+    count = 0
+
+    async for _ in channel.history(limit=None):  # Fetch all messages (limit=None)
+        count += 1
+
+    await ctx.send(f"There are {count} messages in {channel.mention}.")
 
 # test hello command
 @bot.command()
@@ -131,5 +147,46 @@ async def test_grade(ctx):
                    "Click the link below to be taken to the assignment.\n"
                    "https://webcampus.unr.edu/courses/113486/assignments/1458290/submissions/125446\n"
                    )
+    
+# hard coded command for assignment submissions
+@bot.command()
+async def test_submit(ctx):
+    """
+    test assignment submit.
+    Usage: !test_submit
+    """  
+    await ctx.send("Your assignment 'Project Part #3 Design'\n"
+                   "For CS 420 Human Computer Interaction\n"
+                   "Was succesfully submitted at 5:16 PM on 11/26/2024!\n"
+                   "Click the link below to view the submission\n"
+                   "https://webcampus.unr.edu/courses/113486/assignments/1458290/submissions/125446\n"
+                   )
+
+# hard coded command for getting class grade
+@bot.command()
+async def get_class_grade(ctx, *, class_name: str = None):
+    """
+    Gets your grade for a class.
+    Usage: !get_class_grade <Class name> Example: !get_class_grade CPE 470 Auto Mobile Robots
+    """  
+    if not class_name:
+        await ctx.send("Please provide a class name")
+        return       
+    if class_name.lower() == "cs 420 human computer interaction":
+        await ctx.send("Your current grade for CS 420 Human Computer Interaction is: 95.64% (A)\n")
+    if class_name.lower() == "cs 457 database management systems":
+        await ctx.send("Your current grade for CS 457 Database Management Systems is: 91.9% (A)\n")
+    if class_name.lower() == "cpe 470 auto mobile robots":
+        await ctx.send("Your current grade for CPE 470 Auto Mobile Robots is: 109.32% (A)\n")
+
+# hard coded command that gets current gpa from classes
+@bot.command()
+async def get_gpa(ctx):
+    """
+    Calcualtes your current gpa from your classes.
+    Usage: !get_gpa
+    """  
+    await ctx.send("Your current GPA is: 3.26")
+
 # Run the bot
 bot.run("MTMxMDg3NDY5NjQ3NjI2MjQ0MA.GbjMHL.ZmeSN0zNEyblcl_WCX61r5Dm-F923NVtQBojIY")
