@@ -40,6 +40,8 @@ async def on_guild_join(guild):
             "To get started, try `!set_preferences grades announcements`"
         )
         await default_channel.send(help_message)
+
+# dev clear command
 @bot.command()
 @commands.has_permissions(manage_messages=True)
 async def clear(ctx, amount: int):
@@ -49,7 +51,8 @@ async def clear(ctx, amount: int):
     """
     deleted = await ctx.channel.purge(limit=amount+1)
     await ctx.send(f'Deleted {len(deleted)} messages.', delete_after=2)
-# Command: !hello
+
+# test hello command
 @bot.command()
 async def hello(ctx):
     """
@@ -58,6 +61,7 @@ async def hello(ctx):
     """
     await ctx.send(f"Hello, {ctx.author.name}!")
 
+# set_preferences command
 @bot.command()
 async def set_preferences(ctx, *preferences):
     """
@@ -78,6 +82,7 @@ async def set_preferences(ctx, *preferences):
     channel_preferences[channel_id] = selected_preferences
     await ctx.send(f"Preferences for this channel updated: {', '.join(selected_preferences)}")
 
+# view_preferences command
 @bot.command()
 async def view_preferences(ctx):
     """
@@ -88,6 +93,7 @@ async def view_preferences(ctx):
     preferences = channel_preferences.get(channel_id, "None set")
     await ctx.send(f"Current preferences for this channel: {', '.join(preferences) if preferences != 'None set' else preferences}")
 
+# available_preferences command
 @bot.command()
 async def available_preferences(ctx):
     """
@@ -96,5 +102,36 @@ async def available_preferences(ctx):
     """  
     valid_preferences = {"grades", "announcements", "messages"}
     await ctx.send(f"Available preferences to set: {', '.join(valid_preferences)}")
+
+# get_classes command
+# have to hard code this for now
+@bot.command()
+async def get_classes(ctx):
+    """
+    View your current classes.
+    Usage: !get_classes
+    """  
+    #current_classes = {"grades", "announcements", "messages"}
+    await ctx.send("Your current classes are:\n"
+                   "CS 420 Human Computer Interaction\n"
+                   "CS 457 Database Management Systems\n"
+                   "CS 458 Introduction to Data Mining\n"
+                   "CS 474 Image Processing and Interpretation\n"
+                   "CPE 470 Auto Mobile Robots\n"
+                   )
+    
+# hard coded command for new grade
+@bot.command()
+async def test_grade(ctx):
+    """
+    test grades.
+    Usage: !test_grade
+    """  
+    #current_classes = {"grades", "announcements", "messages"}
+    await ctx.send("Your CS 420 assignment Project Part #2: Discovery & Specification was graded!\n"
+                   "You received a 93/100 (93%)!\n"
+                   "Click the link below to be taken to the assignment.\n"
+                   "https://webcampus.unr.edu/courses/113486/assignments/1458290/submissions/125446\n"
+                   )
 # Run the bot
 bot.run("MTMxMDg3NDY5NjQ3NjI2MjQ0MA.GbjMHL.ZmeSN0zNEyblcl_WCX61r5Dm-F923NVtQBojIY")
