@@ -2,8 +2,9 @@ from os import getenv
 from dotenv import load_dotenv
 
 import discord
-from discord.ext import commands
+from discord.ext import tasks, commands
 from discord.ui import View, Button, Select
+import requests
 
 # Set up the bot
 intents = discord.Intents.default()
@@ -11,15 +12,12 @@ intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 load_dotenv()
+CANVAS_API_URL = getenv('CANVAS_API_URL')
+CANVAS_API_TOKEN = getenv('CANVAS_API_TOKEN')
 
 channel_preferences = {}
-
-
-# Event: Bot is ready
-@bot.event
-async def on_ready():
-    print(f"Logged in as {bot.user}!")
-
+seen_grades = set()
+seen_messages = set()
 
 #
 # DENNIS
@@ -247,10 +245,151 @@ grades = {
     "CPE 470 Auto Mobile Robots": "92.0% (A-)"
 }
 
+DISCORD_CHANNEL_ID = 1310883244807422024  # Replace with your channel ID
+def fetch_graded_assignments(course_id):
+    headers = {"Authorization": f"Bearer {CANVAS_API_TOKEN}"}
+    endpoint = f"{CANVAS_API_URL}/courses/{course_id}/students/submissions"
+    params = {
+        "graded_since": "2023-01-01T00:00:00Z",  # Adjust as needed
+        "include[]": "submission_comments"       # Ensure comments are included
+    }
+
+    response = requests.get(endpoint, headers=headers, params=params)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Error fetching graded assignments: {response.status_code}")
+        return []
+    
+def fetch_assignment_details(course_id, assignment_id):
+    headers = {"Authorization": f"Bearer {CANVAS_API_TOKEN}"}
+    endpoint = f"{CANVAS_API_URL}/courses/{course_id}/assignments/{assignment_id}"
+
+    response = requests.get(endpoint, headers=headers)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Error fetching assignment details: {response.status_code}")
+        return None
+
+
+def fetch_user_details(user_id):
+    headers = {"Authorization": f"Bearer {CANVAS_API_TOKEN}"}
+    endpoint = f"{CANVAS_API_URL}/users/{user_id}"
+
+    response = requests.get(endpoint, headers=headers)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Error fetching user details: {response.status_code}")
+        return None
+
+def fetch_submission_comments(course_id, assignment_id, user_id):
+    headers = {"Authorization": f"Bearer {CANVAS_API_TOKEN}"}
+    endpoint = f"{CANVAS_API_URL}/courses/{course_id}/assignments/{assignment_id}/submissions/{user_id}"
+
+    response = requests.get(endpoint, headers=headers)
+    if response.status_code == 200:
+        return response.json().get('submission_comments', [])
+    else:
+        print(f"Error fetching submission comments: {response.status_code}")
+        return []
+
+@tasks.loop(minutes=1)  # Check for new grades every 5 minutes
+async def announce_grades():
+    course_id = 10759133  # Replace with your Canvas course ID
+    submissions = fetch_graded_assignments(course_id)
+
+    for submission in submissions:
+        if submission['id'] not in seen_grades and submission.get('grade'):
+            seen_grades.add(submission['id'])
+
+            # Handle 'user' field
+            student_name = "Unknown Student"
+            if 'user' in submission:
+                student_name = submission['user'].get('name', "Unknown Student")
+            elif 'user_id' in submission:
+                user_details = fetch_user_details(submission['user_id'])
+                if user_details:
+                    student_name = user_details.get('name', "Unknown Student")
+
+            # Handle 'assignment' field
+            assignment_name = "Unknown Assignment"
+            if 'assignment' in submission:
+                assignment_name = submission['assignment'].get('name', "Unknown Assignment")
+            elif 'assignment_id' in submission:
+                assignment_details = fetch_assignment_details(course_id, submission['assignment_id'])
+                if assignment_details:
+                    assignment_name = assignment_details.get('name', "Unknown Assignment")
+
+            grade = submission.get('grade', "No Grade")
+
+ # Fetch comments dynamically if not included
+            comments = submission.get('submission_comments', [])
+            if not comments and 'assignment_id' in submission and 'user_id' in submission:
+                comments = fetch_submission_comments(course_id, submission['assignment_id'], submission['user_id'])
+
+            # Format comments
+            formatted_comments = "\n".join(
+                f"- {comment['author_name']} ({comment['created_at']}): {comment['comment']}"
+                for comment in comments
+            ) or "No comments"
+
+            # Send message to Discord
+            channel = bot.get_channel(DISCORD_CHANNEL_ID)
+            if channel:
+                await channel.send(
+                    f"📢 **New Grade Posted!**\n"
+                    f"**Assignment:** {assignment_name}\n"
+                    f"**Student:** {student_name}\n"
+                    f"**Grade:** {grade}\n"
+                    f"**Comments:**\n{formatted_comments}"
+                )
+
+def fetch_inbox_messages():
+    headers = {"Authorization": f"Bearer {CANVAS_API_TOKEN}"}
+    endpoint = f"{CANVAS_API_URL}/conversations"
+    #params = {"filter": "unread"}  # Fetch only unread messages
+
+    response = requests.get(endpoint, headers=headers)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Error fetching inbox messages: {response.status_code}")
+        return []
+    
+@tasks.loop(minutes=1)  # Check for new messages every 5 minutes
+async def notify_inbox_messages():
+    messages = fetch_inbox_messages()
+    for message in messages:
+        if message['id'] not in seen_messages:
+            seen_messages.add(message['id'])  # Mark message as seen
+
+            # Extract sender name
+            sender_name = "Unknown Sender"
+            participants = message.get("participants", [])
+            if participants:
+                sender_name = participants[0].get("name", "Unknown Sender")  # Adjust logic if needed
+
+            # Extract message subject and body
+            subject = message.get("subject", "No Subject")
+            body = message.get("last_message", "No Content")
+
+            # Send notification to Discord
+            channel = bot.get_channel(DISCORD_CHANNEL_ID)
+            if channel:
+                await channel.send(
+                    f"📧 **New Canvas Inbox Message!**\n"
+                    f"**From:** {sender_name}\n"
+                    f"**Subject:** {subject}\n"
+                    f"**Message:** {body}"
+                )
 # Event: Bot is ready
 @bot.event
 async def on_ready():
-    print(f"Logged in as {bot.user}!")
+    print(f"Logged sin as {bot.user}!")
+    #announce_grades.start()
+    notify_inbox_messages.start()
 
 # View for Main Menu
 class MainMenu(View):
