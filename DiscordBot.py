@@ -14,6 +14,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 load_dotenv()
 CANVAS_API_URL = getenv('CANVAS_API_URL')
 CANVAS_API_TOKEN = getenv('CANVAS_API_TOKEN')
+DISCORD_CHANNEL_ID = int(getenv("DISCORD_CHANNEL_ID", 0))
 
 channel_preferences = {}
 seen_grades = set()
@@ -251,7 +252,7 @@ grades = {
     "CPE 470 Auto Mobile Robots": "92.0% (A-)"
 }
 
-DISCORD_CHANNEL_ID = 1310883244807422024  # Replace with your channel ID
+# Replace with your channel ID
 def fetch_graded_assignments(course_id):
     headers = {"Authorization": f"Bearer {CANVAS_API_TOKEN}"}
     endpoint = f"{CANVAS_API_URL}/courses/{course_id}/students/submissions"
