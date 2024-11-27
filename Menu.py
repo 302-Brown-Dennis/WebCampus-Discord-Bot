@@ -78,6 +78,9 @@ class GetGPAButton(Button):
     async def callback(self, interaction: discord.Interaction):
         # Get the bot's context from the interaction
         ctx = await self.bot.get_context(interaction.message)
+        # Manually update the ctx.author to the user who interacted with the button
+        ctx.author = interaction.user
+        await ctx.send(f"User from interaction: {interaction.user}")
 
         # Trigger the get_gpa command
         await ctx.invoke(self.bot.get_command('get_gpa'))

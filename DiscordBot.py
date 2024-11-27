@@ -175,9 +175,9 @@ async def notify_new_files():
 async def on_ready():
     print(f"Logged in as {bot.user}!")
     await bot.add_cog(Commands(bot))
-    announce_grades.start()
-    notify_inbox_messages.start()
-    notify_new_files.start()
+    #announce_grades.start()
+    #notify_inbox_messages.start()
+    #notify_new_files.start()
 
 # Run the bot
 bot.run(BOT_TOKEN)

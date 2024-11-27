@@ -185,12 +185,15 @@ class Commands(commands.Cog):
         Calcualtes your current gpa from your classes.
         Usage: !get_gpa
         """
-        await ctx.send("Your current GPA is: 3.26")
-        #try:
-        #    await ctx.author.send("Your current GPA is: 3.26")
-        #    await ctx.send(f"✅ Message sent to {ctx.author.name}.")
-        #except discord.Forbidden:
-        #    await ctx.send(f"❌ Could not send a DM to {ctx.author.name}. They might have DMs disabled.")
+        #await ctx.send("Your current GPA is: 3.26")
+        try:
+            await ctx.author.send("Your current GPA is: 3.26")
+            await ctx.send(f"✅ Message sent to {ctx.author.name}.")
+        except discord.Forbidden:
+            await ctx.send(f"❌ Could not send a DM to {ctx.author.name}. They might have DMs disabled.")
+        except discord.HTTPException as e:
+            # Catch any other HTTP-related exceptions (e.g., if Discord blocks DMs)
+            await ctx.send(f"❌ Could not send a DM to {ctx.author.name}. Error: {str(e)}")
 
     @commands.command()
     async def send_image(self, ctx):
