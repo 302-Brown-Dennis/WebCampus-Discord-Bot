@@ -18,6 +18,7 @@ CANVAS_API_TOKEN = getenv('CANVAS_API_TOKEN')
 channel_preferences = {}
 seen_grades = set()
 seen_messages = set()
+seen_files = set()
 
 #
 # DENNIS
@@ -235,7 +236,12 @@ async def get_gpa(ctx):
     Calcualtes your current gpa from your classes.
     Usage: !get_gpa
     """
-    await ctx.send("Your current GPA is: 3.26")
+    #await ctx.send("Your current GPA is: 3.26")
+    try:
+        await ctx.author.send("Your current GPA is: 3.26")
+        await ctx.send(f"✅ Message sent to {ctx.author.name}.")
+    except discord.Forbidden:
+        await ctx.send(f"❌ Could not send a DM to {ctx.author.name}. They might have DMs disabled.")
 
 # Fake Grades for each class
 grades = {
@@ -297,7 +303,7 @@ def fetch_submission_comments(course_id, assignment_id, user_id):
 
 @tasks.loop(minutes=1)  # Check for new grades every 5 minutes
 async def announce_grades():
-    course_id = 10759133  # Replace with your Canvas course ID
+    course_id = 10759133
     submissions = fetch_graded_assignments(course_id)
 
     for submission in submissions:
@@ -384,13 +390,60 @@ async def notify_inbox_messages():
                     f"**Subject:** {subject}\n"
                     f"**Message:** {body}"
                 )
+
+def fetch_course_files(course_id):
+    headers = {"Authorization": f"Bearer {CANVAS_API_TOKEN}"}
+    endpoint = f"{CANVAS_API_URL}/courses/{course_id}/files"
+    params = {
+        "sort": "created_at",  # Sort files by upload time
+        "order": "desc"        # Most recent files first
+    }
+
+    response = requests.get(endpoint, headers=headers, params=params)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Error fetching files: {response.status_code}")
+        return []
+    
+@tasks.loop(minutes=1)  # Check for new files every 5 minutes
+async def notify_new_files():
+    course_id = 10759133
+    files = fetch_course_files(course_id)
+
+    for file in files:
+        if file['id'] not in seen_files:
+            seen_files.add(file['id'])  # Mark file as seen
+
+            file_name = file.get("display_name", "Unknown File")
+            file_url = file.get("url", "No URL")
+            upload_time = file.get("created_at", "Unknown Time")
+
+            # Notify Discord
+            channel = bot.get_channel(DISCORD_CHANNEL_ID)
+            if channel:
+                await channel.send(
+                    f"📂 **New File Uploaded!**\n"
+                    f"**File Name:** {file_name}\n"
+                    f"**Uploaded At:** {upload_time}\n"
+                    f"**Download Link:** [Click here]({file_url})"
+                )  
+
+@bot.command()
+async def send_image(ctx):
+    """
+    Sends a local image file to the channel.
+    """
+    file = discord.File("Personal Projects\CampusDiscordBot\WebCampus-Discord-Bot\WhiskerPlot.PNG", filename="WhiskerPlot.PNG")  # Replace with your image path
+    await ctx.send("Here are the grade comparisons for assignment 1", file=file)
+
 # Event: Bot is ready
 @bot.event
 async def on_ready():
-    print(f"Logged sin as {bot.user}!")
+    print(f"Logged in as {bot.user}!")
     #announce_grades.start()
-    notify_inbox_messages.start()
-
+    #notify_inbox_messages.start()
+    notify_new_files.start()
 # View for Main Menu
 class MainMenu(View):
     def __init__(self):
