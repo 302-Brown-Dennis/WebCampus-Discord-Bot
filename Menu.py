@@ -83,7 +83,7 @@ class ClassSelectMenu(Select):
             letter_grade_message = letter_grade if letter_grade else "No letter grade data available."
             percent_grade_message = percent_grade if percent_grade else "No percent grade data available."
             await interaction.response.send_message(
-                f"In your class {selected_class}, you have a {letter_grade}, with a grade of {percent_grade}%", ephemeral=True
+                f"In your class {selected_class}, you have a {letter_grade_message}, with a grade of {percent_grade_message}%", ephemeral=True
             )
         else:
             await interaction.response.send_message("Selected class not found.", ephemeral=True)
