@@ -2,6 +2,8 @@ from Menu import MainMenu
 import discord
 from discord.ext import commands, tasks
 
+import ApiUtil as au
+
 class Commands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -186,8 +188,9 @@ class Commands(commands.Cog):
         Usage: !get_gpa
         """
         #await ctx.send("Your current GPA is: 3.26")
+        gpa, average_percentage = au.calculate_gpa()
         try:
-            await ctx.author.send("Your current GPA is: 3.26")
+            await ctx.author.send(f"Your current GPA is: {gpa}")
             await ctx.send(f"✅ Message sent to {ctx.author.name}.")
         except discord.Forbidden:
             await ctx.send(f"❌ Could not send a DM to {ctx.author.name}. They might have DMs disabled.")

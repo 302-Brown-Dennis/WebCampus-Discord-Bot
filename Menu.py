@@ -1,5 +1,6 @@
 import discord
 from discord.ui import View, Button, Select
+import ApiUtil as au
 
 # Fake Grades for each class
 grades = {
@@ -52,22 +53,40 @@ class GradeButton(Button):
 # Select Menu for Classes
 class ClassSelectMenu(Select):
     def __init__(self, bot):
-        options = [
-            discord.SelectOption(label="CS 420 Human Computer Interaction"),
-            discord.SelectOption(label="CS 457 Database Management Systems"),
-            discord.SelectOption(label="CS 458 Introduction to Data Mining"),
-            discord.SelectOption(label="CPE 470 Auto Mobile Robots")
-        ]
-        super().__init__(placeholder="Choose a class...", min_values=1, max_values=1, options=options)
+        # Dynamically populate options based on stored courses
+        course_names = au.get_course_names()
+        options = [discord.SelectOption(label=course) for course in course_names]
+
+        super().__init__(
+            placeholder="Choose a class...",
+            min_values=1,
+            max_values=1,
+            options=options
+        )
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction):
         # Get the selected class from the dropdown
         selected_class = self.values[0]
-        grade = grades.get(selected_class, "Class not found.")
+        course_ids = au.get_course_ids()
+        course_names = au.get_course_names()
 
-        # Send the grade for the selected class as an ephemeral (whisper) message
-        await interaction.response.send_message(f"The grade for `{selected_class}` is: {grade}", ephemeral=True)
+        # Match the selected course name to its ID
+        course_id = None
+        for idx, name in enumerate(course_names):
+            if name == selected_class:
+                course_id = course_ids[idx]
+                break
+
+        if course_id:
+            letter_grade, percent_grade = au.get_current_grade(course_id)
+            letter_grade_message = letter_grade if letter_grade else "No letter grade data available."
+            percent_grade_message = percent_grade if percent_grade else "No percent grade data available."
+            await interaction.response.send_message(
+                f"In your class {selected_class}, you have a {letter_grade}, with a grade of {percent_grade}%", ephemeral=True
+            )
+        else:
+            await interaction.response.send_message("Selected class not found.", ephemeral=True)
 
 # Get GPA Button
 class GetGPAButton(Button):
@@ -80,7 +99,6 @@ class GetGPAButton(Button):
         ctx = await self.bot.get_context(interaction.message)
         # Manually update the ctx.author to the user who interacted with the button
         ctx.author = interaction.user
-        await ctx.send(f"User from interaction: {interaction.user}")
 
         # Trigger the get_gpa command
         await ctx.invoke(self.bot.get_command('get_gpa'))

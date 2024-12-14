@@ -6,6 +6,7 @@ from discord.ext import tasks, commands
 import requests
 
 from cogs.commands import Commands
+import ApiUtil as au
 
 # Load environment variables
 load_dotenv()
@@ -84,68 +85,7 @@ def fetch_course_files(course_id):
 
 import json
 
-def fetch_student_courses():
-    endpoint = f"{CANVAS_API_URL}/courses"
-    params = {"enrollment_type": "student"}  # Filter for courses where the user is enrolled as a student
-    courses = make_api_request(endpoint, params)
 
-    if not courses:
-        print("No courses found or error fetching courses.")
-        return
-
-    # Extract course IDs and names
-    course_data = [
-        {"id": course["id"], "name": course.get("name", "Unnamed Course")}
-        for course in courses
-    ]
-
-    # Store the courses locally in a JSON file
-    try:
-        with open("student_courses.json", "w") as file:
-            json.dump(course_data, file, indent=4)
-        print("Courses saved successfully to student_courses.json")
-    except Exception as e:
-        print(f"Error saving courses to file: {e}")
-
-def get_course_names():
-    try:
-        with open("student_courses.json", "r") as file:
-            courses = json.load(file)
-        return [course["name"] for course in courses]
-    except FileNotFoundError:
-        print("No courses file found. Please fetch courses first.")
-        return []
-    except Exception as e:
-        print(f"Error reading courses file: {e}")
-        return []
-
-def get_course_ids():
-    try:
-        with open("student_courses.json", "r") as file:
-            courses = json.load(file)
-        return [course["id"] for course in courses]
-    except FileNotFoundError:
-        print("No courses file found. Please fetch courses first.")
-        return []
-    except Exception as e:
-        print(f"Error reading courses file: {e}")
-        return []
-
-def get_course_by_id(course_id):
-    try:
-        with open("student_courses.json", "r") as file:
-            courses = json.load(file)
-        for course in courses:
-            if course["id"] == course_id:
-                return course["name"]
-        print("Course ID not found.")
-        return None
-    except FileNotFoundError:
-        print("No courses file found. Please fetch courses first.")
-        return None
-    except Exception as e:
-        print(f"Error reading courses file: {e}")
-        return None
 
 # Tasks for notifications
 @tasks.loop(minutes=1)
@@ -238,7 +178,15 @@ async def notify_new_files():
 # Event: Bot is ready
 @bot.event
 async def on_ready():
-    fetch_student_courses() # Stores student course info in a JSON (If not a prototype, would do in a DB)
+    au.fetch_student_courses() # Stores student course info in a JSON (If not a prototype, would do in a DB)
+    print(f"names: {au.get_course_names()}")
+    print(f"ids: {au.get_course_ids()}")
+    gpa, average_percent = au.calculate_gpa()
+    print(f"Calculated GPA: {gpa:.2f}")
+    print(f"Average Percent Grade: {average_percent:.2f}")
+    for course_id in au.get_course_ids():
+        letter_grade, percent_grade = au.get_current_grade(course_id)
+        print(f"In your class {au.get_course_by_id(course_id)}, you have a {letter_grade}, with a grade of {percent_grade}%")
     print(f"Logged in as {bot.user}!")
     await bot.add_cog(Commands(bot))
     #announce_grades.start()
