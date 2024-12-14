@@ -3,7 +3,6 @@ import json
 import discord
 from discord.ui import View, Button, Select
 import ApiUtil as au
-
 # View for Main Menu
 class MainMenu(View):
     def __init__(self, bot):
@@ -189,8 +188,75 @@ class SetPreferencesButton(Button):
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction):
+        # Create a new view for setting preferences
+        set_preferences_view = PreferencesView(self.bot)
+
+        # Embed for the Set Preferences UI
+        embed = discord.Embed(
+            title="Set Your Preferences",
+            description="Please select your preferences using the dropdown below.",
+            color=discord.Color.blue(),
+        )
+
+        await interaction.response.send_message(embed=embed, view=set_preferences_view, ephemeral=True)
+# Preferences View with Dropdown
+class PreferencesView(View):
+    def __init__(self, bot):
+        super().__init__(timeout=None)
+        # 2 drop downs one to add , one to remove
+        self.add_item(PreferencesDropdown(bot, action="add"))
+        self.add_item(PreferencesDropdown(bot, action="remove"))
+
+# Dropdown for selecting preferences
+class PreferencesDropdown(Select):
+    def __init__(self, bot, action="add"):
+   
+        self.bot = bot
+        self.action = action
+        options = [
+            discord.SelectOption(label="Grades", description="Notifications for grades"),
+            discord.SelectOption(label="Announcements", description="Notifications for announcements"),
+            discord.SelectOption(label="Messages", description="Notifications for messages"),
+        ]
+
+        placeholder_text = "Select preferences to add..." if action == "add" else "Select preferences to remove..."
+
+        super().__init__(
+            placeholder=placeholder_text,
+            min_values=1,
+            max_values=len(options),
+            options=options,
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        # Get user ID
+        user_id = interaction.user.id
+
+        # Ensure the user has an entry in the preferences dictionary
+        if user_id not in self.bot.user_preferences:
+            self.bot.user_preferences[user_id] = []
+
+        # Get the user's current preferences
+        current_preferences = set(self.bot.user_preferences[user_id])
+
+        # Add or remove preferences based on the action
+        if self.action == "add":
+            updated_preferences = current_preferences.union(set(self.values))
+        elif self.action == "remove":
+            updated_preferences = current_preferences.difference(set(self.values))
+        else:
+            await interaction.response.send_message(
+                "Invalid action! Please try again.", ephemeral=True
+            )
+            return
+
+        # Update the user's preferences
+        self.bot.user_preferences[user_id] = list(updated_preferences)
+
+        # Format the updated preferences for response
+        updated_preferences_str = ", ".join(self.bot.user_preferences[user_id]) or "No preferences set."
         await interaction.response.send_message(
-            "To set preferences, type `!set_preferences <options>`. To see available preferences use `!available_preferences`.",
+            f"Your preferences have been updated. Current preferences: {updated_preferences_str}",
             ephemeral=True,
         )
 
@@ -201,8 +267,10 @@ class ViewPreferencesButton(Button):
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction):
+        user_id = interaction.user.id
+        preferences = self.bot.user_preferences.get(user_id, ["No preferences set."])
         await interaction.response.send_message(
-            "Current preferences: Grades, Announcements",
+            f"Your current preferences are: {', '.join(preferences)}",
             ephemeral=True,
         )
 
@@ -288,6 +356,7 @@ class BackToMenuButton(Button):
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction):
+        # Create a main menu embed
         embed = discord.Embed(
             title="Main Menu",
             description=(
@@ -299,4 +368,8 @@ class BackToMenuButton(Button):
             ),
             color=discord.Color.gold(),
         )
-        await interaction.response.edit_message(embed=embed, view=MainMenu(self.bot))
+
+        # Create the main menu view and add buttons
+        main_menu_view = MainMenu(self.bot)
+
+        await interaction.response.edit_message(embed=embed, view=main_menu_view)

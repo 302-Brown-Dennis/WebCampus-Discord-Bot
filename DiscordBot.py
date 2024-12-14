@@ -13,18 +13,20 @@ load_dotenv()
 CANVAS_API_URL = getenv('CANVAS_API_URL')
 CANVAS_API_TOKEN = getenv('CANVAS_API_TOKEN')
 DISCORD_CHANNEL_ID = int(getenv("DISCORD_CHANNEL_ID", 0))
+DISCORD_SERVER_ID = int(getenv("DISCORD_SERVER_ID", 0))
 BOT_TOKEN = getenv('BOT_TOKEN')
 
 # Set up the bot with intents
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Initialize sets to track seen items
 seen_grades = set()
 seen_messages = set()
 seen_files = set()
-
+bot.user_preferences = {}
 # Event: When the bot joins a new server
 @bot.event
 async def on_guild_join(guild):
@@ -78,10 +80,6 @@ def fetch_course_files(course_id):
     params = {"sort": "created_at", "order": "desc"}
     return make_api_request(endpoint, params)
 
-import json
-
-
-
 # Tasks for notifications
 @tasks.loop(minutes=1)
 async def announce_grades():
@@ -100,32 +98,44 @@ async def announce_grades():
                 user_id = submission.get("user_id")
                 student_name = au.get_student_name(user_id)
                 grade = submission.get('grade', "No Grade")
-                # Fetch max points for the assignment
                 max_points = au.get_assignment_max_points(course_id, assignment_id)
                 formatted_grade = f"{grade}/{max_points}" if max_points else grade
                 comments = submission.get('submission_comments', [])
 
                 # Fetch comments if not included
                 if not comments:
-                    comments = au.fetch_submission_comments(course_id, submission['assignment_id'], submission['user_id'])
+                    comments = au.fetch_submission_comments(course_id, assignment_id, user_id)
 
-                # Format and send to Discord
+                # Format the comments
                 formatted_comments = "\n".join(
                     f"- {comment['author_name']} at ({comment['created_at']}): {comment['comment']}"
                     for comment in comments
                 ) or "No comments"
 
                 link = submission.get("preview_url", "")
-                channel = bot.get_channel(DISCORD_CHANNEL_ID)
-                if channel:
-                    await channel.send(
-                        f"📢 **New Grade Posted!**\n"
-                        f"**Assignment:** {assignment_name}\n"
-                        f"**Student:** {student_name}\n"
-                        f"**Grade:** {formatted_grade}\n"
-                        f"**Comments:**\n{formatted_comments}\n"
-                        f"**Link:**\n{link}\n"
-                    )
+
+                # Notify users based on preferences
+                guild = bot.get_guild(DISCORD_SERVER_ID)
+                if guild:
+                    for member in guild.members:
+                        if member.bot:
+                            continue
+
+                        # Check user for grade notifications
+                        user_preferences = bot.user_preferences.get(member.id, [])
+                        if "Grades" in user_preferences:
+                            try:
+                                # Send a DM to the user
+                                await member.send(
+                                    f"📢 **New Grade Posted!**\n"
+                                    f"**Assignment:** {assignment_name}\n"
+                                    f"**Student:** {student_name}\n"
+                                    f"**Grade:** {formatted_grade}\n"
+                                    f"**Comments:**\n{formatted_comments}\n"
+                                    f"**Link:**\n{link}\n"
+                                )
+                            except Exception as e:
+                                print(f"Could not send DM to {member}: {e}")
 
 @tasks.loop(minutes=1)
 async def notify_inbox_messages():
@@ -142,22 +152,42 @@ async def notify_inbox_messages():
             subject = message.get('subject', "No Subject")
             body = message.get('last_message', "No Content")
 
-            # Notify Discord
-            channel = bot.get_channel(DISCORD_CHANNEL_ID)
-            if channel:
-                await channel.send(
-                    f"📧 **New Canvas Inbox Message!**\n"
-                    f"**From:** {sender_name}\n"
-                    f"**Subject:** {subject}\n"
-                    f"**Message:** {body}"
-                )
+            # Notify users based on their preferences
+            guild = bot.get_guild(DISCORD_SERVER_ID)
+            if guild:
+                for member in guild.members:
+                    if member.bot:
+                        continue
+
+                    # Get the users preferences
+                    user_preferences = bot.user_preferences.get(member.id, [])
+
+                    # Check if the user wants inbox message notifications
+                    if "Messages" in user_preferences:
+                        try:
+                            # Send a DM to the user
+                            await member.send(
+                                f"📧 **New Canvas Inbox Message!**\n"
+                                f"**From:** {sender_name}\n"
+                                f"**Subject:** {subject}\n"
+                                f"**Message:** {body}"
+                            )
+                        except Exception as e:
+                            print(f"Could not send DM to {member}: {e}")
 
 @tasks.loop(minutes=1)
 async def notify_new_files():
-    for course_id in au.get_course_ids():
+
+    course_ids = au.get_course_ids()
+    
+    for course_id in course_ids:
+        # Fetch the list of file objects for the current course
         files = fetch_course_files(course_id)
-        if not files:
-            return
+        
+        # Ensure non-empty list
+        if not files or not isinstance(files, list):
+            #print(f"No valid files found for course {course_id}. Response: {files}")
+            continue
 
         for file in files:
             if file['id'] not in seen_files:
@@ -168,15 +198,27 @@ async def notify_new_files():
                 file_url = file.get("url", "No URL")
                 upload_time = file.get("created_at", "Unknown Time")
 
-                # Notify Discord
-                channel = bot.get_channel(DISCORD_CHANNEL_ID)
-                if channel:
-                    await channel.send(
-                        f"📂 **New File Uploaded!**\n"
-                        f"**File Name:** {file_name}\n"
-                        f"**Uploaded At:** {upload_time}\n"
-                        f"**Download Link:** [Click here]({file_url})"
-                    )
+                # Fetch all members of the server
+                guild = bot.get_guild(DISCORD_SERVER_ID)
+                print(guild)
+                if guild:
+                    for member in guild.members:
+                        # Skip bots
+                        print(member)
+                        if member.bot:
+                            continue
+                        
+                        try:
+                            # Send DM to the member
+                            await member.send(
+                                f"📂 **New File Uploaded!**\n"
+                                f"**File Name:** {file_name}\n"
+                                f"**Uploaded At:** {upload_time}\n"
+                                f"**Download Link:** [Click here]({file_url})"
+                            )
+                        except Exception as e:
+                            print(f"Could not send DM to {member}: {e}")
+                    
 
 # Event: Bot is ready
 @bot.event
@@ -185,7 +227,7 @@ async def on_ready():
     print(f"Logged in as {bot.user}!")
     await bot.add_cog(Commands(bot))
     #announce_grades.start()
-    #notify_inbox_messages.start()
+    notify_inbox_messages.start()
     #notify_new_files.start()
 
 # Run the bot
