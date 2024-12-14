@@ -140,8 +140,9 @@ class GetRecentGrades(Button):
         # Format recent grades
         grades_list = "\n".join(
             f"**{grade['assignment_name']}**\n"
+            f"Student: {grade['student_name']}\n"
             f"Grade: {grade['grade']}\n"
-            f"Comments: {grade['comments']}\n"
+            f"Graded at: {grade['graded_at']}\n"
             f"[View Assignment]({grade['link']})\n"
             for grade in recent_grades
         )

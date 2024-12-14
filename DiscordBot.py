@@ -111,7 +111,7 @@ async def announce_grades():
 
                 # Format and send to Discord
                 formatted_comments = "\n".join(
-                    f"- {comment['author_name']} ({comment['created_at']}): {comment['comment']}"
+                    f"- {comment['author_name']} at ({comment['created_at']}): {comment['comment']}"
                     for comment in comments
                 ) or "No comments"
 
@@ -182,17 +182,9 @@ async def notify_new_files():
 @bot.event
 async def on_ready():
     au.fetch_student_courses() # Stores student course info in a JSON (If not a prototype, would do in a DB)
-    print(f"names: {au.get_course_names()}")
-    print(f"ids: {au.get_course_ids()}")
-    gpa, average_percent = au.calculate_gpa()
-    print(f"Calculated GPA: {gpa:.2f}")
-    print(f"Average Percent Grade: {average_percent:.2f}")
-    for course_id in au.get_course_ids():
-        letter_grade, percent_grade = au.get_current_grade(course_id)
-        print(f"In your class {au.get_course_by_id(course_id)}, you have a {letter_grade}, with a grade of {percent_grade}%")
     print(f"Logged in as {bot.user}!")
     await bot.add_cog(Commands(bot))
-    announce_grades.start()
+    #announce_grades.start()
     #notify_inbox_messages.start()
     #notify_new_files.start()
 

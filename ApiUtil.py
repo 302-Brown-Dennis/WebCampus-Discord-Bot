@@ -12,7 +12,8 @@ CANVAS_API_TOKEN = getenv('CANVAS_API_TOKEN')
 DISCORD_CHANNEL_ID = int(getenv("DISCORD_CHANNEL_ID", 0))
 BOT_TOKEN = getenv('BOT_TOKEN')
 
-USER_TIMEZONE = pytz.timezone("America/Denver")
+USER_TIMEZONE = pytz.timezone("America/Los_Angeles")
+USER_TIMEZONE_PLUS = pytz.timezone("America/Denver")
 
 # Canvas API Helper Functions
 def make_api_request(endpoint, params=None):
@@ -187,12 +188,12 @@ def fetch_upcoming_assignments(course_ids):
                     due_date_utc = pytz.utc.localize(due_date_utc)  # Localize the UTC time
 
                     # Convert the due date to the user's local time zone (Pacific Time)
-                    due_date_local = due_date_utc.astimezone(USER_TIMEZONE)
+                    due_date_local = due_date_utc.astimezone(USER_TIMEZONE_PLUS)
 
                     # Only include assignments due within the next week in the local time zone
                     if today <= due_date_local <= one_week_later:
                         # Format the due date to a more readable format
-                        formatted_due_date = due_date_local.strftime("%B %d, %Y, %I:%M %p")
+                        formatted_due_date = due_date_utc.astimezone(USER_TIMEZONE_PLUS).strftime("%B %d, %Y, %I:%M %p")
 
                         upcoming_assignments.append({
                             "course": assignment["course_id"],
@@ -233,13 +234,14 @@ def fetch_recent_grades(course_id):
                 max_points = get_assignment_max_points(course_id, assignment_id)
                 formatted_grade = f"{score}/{max_points}" if max_points else grade
 
+                # Fetch submission comments
                 comments = submission.get('submission_comments', [])
 
-                # Fetch comments if not included
+                # Fetch comments if they are not included
                 if not comments:
                     comments = fetch_submission_comments(course_id, submission['assignment_id'], submission['user_id'])
 
-                # Format and send to Discord
+                # Format comments
                 formatted_comments = "\n".join(
                     f"- {comment['author_name']} ({comment['created_at']}): {comment['comment']}"
                     for comment in comments
@@ -252,7 +254,8 @@ def fetch_recent_grades(course_id):
                     "student_name": student_name,
                     "grade": formatted_grade,
                     "comments": formatted_comments,
-                    "link": link
+                    "link": link,
+                    "graded_at": graded_at.astimezone(USER_TIMEZONE).strftime("%B %d, %Y, %I:%M %p")
                 })
 
     return recent_grades
