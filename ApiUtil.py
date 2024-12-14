@@ -197,7 +197,8 @@ def fetch_upcoming_assignments(course_ids):
                         upcoming_assignments.append({
                             "course": assignment["course_id"],
                             "assignment": assignment["name"],
-                            "due_date": formatted_due_date
+                            "due_date": formatted_due_date,
+                            "link": assignment.get("html_url", "")
                         })
 
     return upcoming_assignments

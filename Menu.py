@@ -218,7 +218,7 @@ class ViewUpcomingAssignmentsButton(Button):
 
         # Format the upcoming assignments for display
         assignments_list = "\n".join(
-            f"- {assignment['assignment']} (Due: {assignment['due_date']}) for Class: {au.get_course_by_id(assignment['course'])}"
+            f"- {assignment['assignment']} (Due: {assignment['due_date']}) for Class: {au.get_course_by_id(assignment['course'])}, Link: {assignment['link']}"
             for assignment in upcoming_assignments
         )
 
