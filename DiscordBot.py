@@ -223,7 +223,6 @@ async def notify_new_files():
 # Event: Bot is ready
 @bot.event
 async def on_ready():
-    au.fetch_student_courses() # Stores student course info in a JSON (If not a prototype, would do in a DB)
     print(f"Logged in as {bot.user}!")
     await bot.add_cog(Commands(bot))
     #announce_grades.start()

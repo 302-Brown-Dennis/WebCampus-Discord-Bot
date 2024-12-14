@@ -287,6 +287,7 @@ class ClassesButton(Button):
             description=(
                 "Choose an action related to your classes:\n"
                 "- View current classes\n"
+                "- Update current classes\n"
             ),
             color=discord.Color.purple(),
         )
@@ -294,6 +295,7 @@ class ClassesButton(Button):
         # Add Classes-specific Buttons
         class_view = View(timeout=None)
         class_view.add_item(ViewClassesButton(self.bot))
+        class_view.add_item(UpdateClassesButton(self.bot))
         class_view.add_item(BackToMenuButton(self.bot))
 
         await interaction.response.edit_message(embed=embed, view=class_view)
@@ -318,6 +320,19 @@ class ViewClassesButton(Button):
         classes_list = "\n".join(f"- {course}" for course in course_names)
         await interaction.response.send_message(
             f"Your current classes are:\n{classes_list}",
+            ephemeral=True,
+        )
+
+# Update Classes Button
+class UpdateClassesButton(Button):
+    def __init__(self, bot):
+        super().__init__(label="Update Classes", style=discord.ButtonStyle.secondary)
+        self.bot = bot
+
+    async def callback(self, interaction: discord.Interaction):
+        au.fetch_student_courses()  # Stores student course info in a JSON (If not a prototype, would do in a DB)
+        await interaction.response.send_message(
+            f"Your classes have been updated!",
             ephemeral=True,
         )
 
