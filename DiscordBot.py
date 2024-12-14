@@ -90,39 +90,39 @@ import json
 # Tasks for notifications
 @tasks.loop(minutes=1)
 async def announce_grades():
-    course_id = 10759133
-    submissions = fetch_graded_assignments(course_id)
-    if not submissions:
-        return
+    for course_id in au.get_course_ids():
+        submissions = fetch_graded_assignments(course_id)
+        if not submissions:
+            return
 
-    for submission in submissions:
-        if submission['id'] not in seen_grades and submission.get('grade'):
-            seen_grades.add(submission['id'])
+        for submission in submissions:
+            if submission['id'] not in seen_grades and submission.get('grade'):
+                seen_grades.add(submission['id'])
 
-            # Get assignment details
-            assignment_name = submission.get('assignment', {}).get('name', "Unknown Assignment")
-            student_name = submission.get('user', {}).get('name', "Unknown Student")
-            grade = submission.get('grade', "No Grade")
-            comments = submission.get('submission_comments', [])
+                # Get assignment details
+                assignment_name = submission.get('assignment', {}).get('name', "Unknown Assignment")
+                student_name = submission.get('user', {}).get('name', "Unknown Student")
+                grade = submission.get('grade', "No Grade")
+                comments = submission.get('submission_comments', [])
 
-            # Fetch comments if not included
-            if not comments:
-                comments = fetch_submission_comments(course_id, submission['assignment_id'], submission['user_id'])
+                # Fetch comments if not included
+                if not comments:
+                    comments = fetch_submission_comments(course_id, submission['assignment_id'], submission['user_id'])
 
-            # Format and send to Discord
-            formatted_comments = "\n".join(
-                f"- {comment['author_name']} ({comment['created_at']}): {comment['comment']}"
-                for comment in comments
-            ) or "No comments"
-            channel = bot.get_channel(DISCORD_CHANNEL_ID)
-            if channel:
-                await channel.send(
-                    f"📢 **New Grade Posted!**\n"
-                    f"**Assignment:** {assignment_name}\n"
-                    f"**Student:** {student_name}\n"
-                    f"**Grade:** {grade}\n"
-                    f"**Comments:**\n{formatted_comments}"
-                )
+                # Format and send to Discord
+                formatted_comments = "\n".join(
+                    f"- {comment['author_name']} ({comment['created_at']}): {comment['comment']}"
+                    for comment in comments
+                ) or "No comments"
+                channel = bot.get_channel(DISCORD_CHANNEL_ID)
+                if channel:
+                    await channel.send(
+                        f"📢 **New Grade Posted!**\n"
+                        f"**Assignment:** {assignment_name}\n"
+                        f"**Student:** {student_name}\n"
+                        f"**Grade:** {grade}\n"
+                        f"**Comments:**\n{formatted_comments}"
+                    )
 
 @tasks.loop(minutes=1)
 async def notify_inbox_messages():
@@ -151,29 +151,29 @@ async def notify_inbox_messages():
 
 @tasks.loop(minutes=1)
 async def notify_new_files():
-    course_id = 10759133
-    files = fetch_course_files(course_id)
-    if not files:
-        return
+    for course_id in au.get_course_ids():
+        files = fetch_course_files(course_id)
+        if not files:
+            return
 
-    for file in files:
-        if file['id'] not in seen_files:
-            seen_files.add(file['id'])
+        for file in files:
+            if file['id'] not in seen_files:
+                seen_files.add(file['id'])
 
-            # Extract file details
-            file_name = file.get("display_name", "Unknown File")
-            file_url = file.get("url", "No URL")
-            upload_time = file.get("created_at", "Unknown Time")
+                # Extract file details
+                file_name = file.get("display_name", "Unknown File")
+                file_url = file.get("url", "No URL")
+                upload_time = file.get("created_at", "Unknown Time")
 
-            # Notify Discord
-            channel = bot.get_channel(DISCORD_CHANNEL_ID)
-            if channel:
-                await channel.send(
-                    f"📂 **New File Uploaded!**\n"
-                    f"**File Name:** {file_name}\n"
-                    f"**Uploaded At:** {upload_time}\n"
-                    f"**Download Link:** [Click here]({file_url})"
-                )
+                # Notify Discord
+                channel = bot.get_channel(DISCORD_CHANNEL_ID)
+                if channel:
+                    await channel.send(
+                        f"📂 **New File Uploaded!**\n"
+                        f"**File Name:** {file_name}\n"
+                        f"**Uploaded At:** {upload_time}\n"
+                        f"**Download Link:** [Click here]({file_url})"
+                    )
 
 # Event: Bot is ready
 @bot.event
