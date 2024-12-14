@@ -1,20 +1,15 @@
+import json
+
 import discord
 from discord.ui import View, Button, Select
 import ApiUtil as au
-
-# Fake Grades for each class
-grades = {
-    "CS 420 Human Computer Interaction": "95.64% (A)",
-    "CS 457 Database Management Systems": "91.9% (A)",
-    "CS 458 Introduction to Data Mining": "88.5% (B+)",
-    "CPE 470 Auto Mobile Robots": "92.0% (A-)"
-}
 
 # View for Main Menu
 class MainMenu(View):
     def __init__(self, bot):
         super().__init__(timeout=None)
         self.bot = bot
+        self.add_item(ViewUpcomingAssignmentsButton(self.bot))
         self.add_item(GradeButton(self.bot))
         self.add_item(PreferencesButton(self.bot))
         self.add_item(ClassesButton(self.bot))
@@ -170,7 +165,6 @@ class ClassesButton(Button):
             description=(
                 "Choose an action related to your classes:\n"
                 "- View current classes\n"
-                "- View assignments\n"
             ),
             color=discord.Color.purple(),
         )
@@ -202,6 +196,34 @@ class ViewClassesButton(Button):
         classes_list = "\n".join(f"- {course}" for course in course_names)
         await interaction.response.send_message(
             f"Your current classes are:\n{classes_list}",
+            ephemeral=True,
+        )
+
+# Button to View Upcoming Assignments
+class ViewUpcomingAssignmentsButton(Button):
+    def __init__(self, bot):
+        super().__init__(label="View Upcoming Assignments", style=discord.ButtonStyle.primary)
+        self.bot = bot
+
+    async def callback(self, interaction: discord.Interaction):
+        # Fetch course IDs from locally saved courses
+        # Fetch upcoming assignments within the next week
+        upcoming_assignments = au.fetch_upcoming_assignments(au.get_course_ids())
+        if not upcoming_assignments:
+            await interaction.response.send_message(
+                "No upcoming assignments due within the next week.",
+                ephemeral=True,
+            )
+            return
+
+        # Format the upcoming assignments for display
+        assignments_list = "\n".join(
+            f"- {assignment['assignment']} (Due: {assignment['due_date']}) for Class: {au.get_course_by_id(assignment['course'])}"
+            for assignment in upcoming_assignments
+        )
+
+        await interaction.response.send_message(
+            f"Here are your upcoming assignments due within the next week:\n{assignments_list}",
             ephemeral=True,
         )
 

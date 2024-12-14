@@ -1,5 +1,7 @@
+from datetime import datetime, timedelta
 import json
-from os import getenv, listdir
+import pytz
+from os import getenv
 from dotenv import load_dotenv
 
 import requests
@@ -9,6 +11,8 @@ CANVAS_API_URL = getenv('CANVAS_API_URL')
 CANVAS_API_TOKEN = getenv('CANVAS_API_TOKEN')
 DISCORD_CHANNEL_ID = int(getenv("DISCORD_CHANNEL_ID", 0))
 BOT_TOKEN = getenv('BOT_TOKEN')
+
+USER_TIMEZONE = pytz.timezone("America/Denver")
 
 # Canvas API Helper Functions
 def make_api_request(endpoint, params=None):
@@ -96,8 +100,11 @@ def get_current_grade(course_id):
         # Check for the correct enrollment type and that grades exist
         if enrollment.get("type") == "StudentEnrollment" and enrollment.get("grades"):
             grades = enrollment["grades"]
+            current_score = grades.get("current_score")
+            if current_score is None:
+                current_score = 100.0
             # Prefer current_grade if available, fallback to current_score
-            return convert_score_to_grade(grades.get("current_score")), grades.get("current_score")
+            return convert_score_to_grade(current_score), current_score
 
     print("No grade data available for the course.")
     return None
@@ -147,3 +154,51 @@ def calculate_gpa():
     average_percent = total_percent / total_courses
     gpa = total_points / total_courses
     return gpa, average_percent
+
+# Canvas API Helper Functions
+def make_api_request(endpoint, params=None):
+    headers = {"Authorization": f"Bearer {CANVAS_API_TOKEN}"}
+    response = requests.get(endpoint, headers=headers, params=params or {})
+    if response.status_code == 200:
+        return response.json()
+    print(f"Error fetching data from {endpoint}: {response.status_code}")
+    return None
+
+
+def fetch_upcoming_assignments(course_ids):
+    # Define today's date and the date 7 days from now in UTC
+    today = datetime.now(pytz.utc)  # Current time in UTC
+    one_week_later = today + timedelta(weeks=1)
+
+    upcoming_assignments = []
+
+    for course_id in course_ids:
+        # Fetch assignments for each course
+        endpoint = f"{CANVAS_API_URL}/courses/{course_id}/assignments"
+        assignments = make_api_request(endpoint)
+
+        if assignments:
+            # Filter assignments that are due within the next week
+            for assignment in assignments:
+                due_date_str = assignment.get("due_at")
+                if due_date_str:
+                    # Parse the due date from Canvas in UTC
+                    due_date_utc = datetime.strptime(due_date_str, "%Y-%m-%dT%H:%M:%SZ")
+                    due_date_utc = pytz.utc.localize(due_date_utc)  # Localize the UTC time
+
+                    # Convert the due date to the user's local time zone (Pacific Time)
+                    due_date_local = due_date_utc.astimezone(USER_TIMEZONE)
+
+                    # Only include assignments due within the next week in the local time zone
+                    if today <= due_date_local <= one_week_later:
+                        # Format the due date to a more readable format
+                        formatted_due_date = due_date_local.strftime("%B %d, %Y, %I:%M %p")
+
+                        upcoming_assignments.append({
+                            "course": assignment["course_id"],
+                            "assignment": assignment["name"],
+                            "due_date": formatted_due_date
+                        })
+
+    return upcoming_assignments
+
