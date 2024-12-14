@@ -69,11 +69,6 @@ def fetch_user_details(user_id):
     endpoint = f"{CANVAS_API_URL}/users/{user_id}"
     return make_api_request(endpoint)
 
-def fetch_submission_comments(course_id, assignment_id, user_id):
-    endpoint = f"{CANVAS_API_URL}/courses/{course_id}/assignments/{assignment_id}/submissions/{user_id}"
-    submission = make_api_request(endpoint)
-    return submission.get('submission_comments', []) if submission else []
-
 def fetch_inbox_messages():
     endpoint = f"{CANVAS_API_URL}/conversations"
     return make_api_request(endpoint)
@@ -100,28 +95,36 @@ async def announce_grades():
                 seen_grades.add(submission['id'])
 
                 # Get assignment details
-                assignment_name = submission.get('assignment', {}).get('name', "Unknown Assignment")
-                student_name = submission.get('user', {}).get('name', "Unknown Student")
+                assignment_id = submission.get("assignment_id")
+                assignment_name = au.get_assignment_name(course_id, assignment_id)
+                user_id = submission.get("user_id")
+                student_name = au.get_student_name(user_id)
                 grade = submission.get('grade', "No Grade")
+                # Fetch max points for the assignment
+                max_points = au.get_assignment_max_points(course_id, assignment_id)
+                formatted_grade = f"{grade}/{max_points}" if max_points else grade
                 comments = submission.get('submission_comments', [])
 
                 # Fetch comments if not included
                 if not comments:
-                    comments = fetch_submission_comments(course_id, submission['assignment_id'], submission['user_id'])
+                    comments = au.fetch_submission_comments(course_id, submission['assignment_id'], submission['user_id'])
 
                 # Format and send to Discord
                 formatted_comments = "\n".join(
                     f"- {comment['author_name']} ({comment['created_at']}): {comment['comment']}"
                     for comment in comments
                 ) or "No comments"
+
+                link = submission.get("preview_url", "")
                 channel = bot.get_channel(DISCORD_CHANNEL_ID)
                 if channel:
                     await channel.send(
                         f"📢 **New Grade Posted!**\n"
                         f"**Assignment:** {assignment_name}\n"
                         f"**Student:** {student_name}\n"
-                        f"**Grade:** {grade}\n"
-                        f"**Comments:**\n{formatted_comments}"
+                        f"**Grade:** {formatted_grade}\n"
+                        f"**Comments:**\n{formatted_comments}\n"
+                        f"**Link:**\n{link}\n"
                     )
 
 @tasks.loop(minutes=1)
@@ -189,7 +192,7 @@ async def on_ready():
         print(f"In your class {au.get_course_by_id(course_id)}, you have a {letter_grade}, with a grade of {percent_grade}%")
     print(f"Logged in as {bot.user}!")
     await bot.add_cog(Commands(bot))
-    #announce_grades.start()
+    announce_grades.start()
     #notify_inbox_messages.start()
     #notify_new_files.start()
 

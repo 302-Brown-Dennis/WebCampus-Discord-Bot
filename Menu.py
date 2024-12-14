@@ -41,6 +41,7 @@ class GradeButton(Button):
         grade_view = View(timeout=None)
         grade_view.add_item(select)
         grade_view.add_item(GetGPAButton(self.bot))
+        grade_view.add_item(GetRecentGrades(self.bot, select))
         grade_view.add_item(BackToMenuButton(self.bot))
 
         await interaction.response.edit_message(embed=embed, view=grade_view)
@@ -100,6 +101,58 @@ class GetGPAButton(Button):
         await interaction.response.send_message(
             "Your GPA has been requested.", ephemeral=True,
         )
+
+# Get Recent Grades Button
+class GetRecentGrades(Button):
+    def __init__(self, bot, select_menu):
+        super().__init__(label="Get Recent Grades", style=discord.ButtonStyle.secondary)
+        self.bot = bot
+        self.select_menu = select_menu
+
+    async def callback(self, interaction: discord.Interaction):
+        # Fetch selected course or all courses
+        selected_class = self.select_menu.values[0] if self.select_menu.values else None
+        course_ids = au.get_course_ids()
+        course_names = au.get_course_names()
+        recent_grades = []
+
+        if selected_class:
+            # Fetch course ID for selected class
+            course_id = None
+            for idx, name in enumerate(course_names):
+                if name == selected_class:
+                    course_id = course_ids[idx]
+                    break
+            if course_id:
+                recent_grades = au.fetch_recent_grades(course_id)
+        else:
+            # Fetch grades for all courses
+            for course_id in course_ids:
+                recent_grades.extend(au.fetch_recent_grades(course_id))
+
+        if not recent_grades:
+            await interaction.response.send_message(
+                "No recent grades were found within the past 3 days.",
+                ephemeral=True,
+            )
+            return
+
+        # Format recent grades
+        grades_list = "\n".join(
+            f"**{grade['assignment_name']}**\n"
+            f"Grade: {grade['grade']}\n"
+            f"Comments: {grade['comments']}\n"
+            f"[View Assignment]({grade['link']})\n"
+            for grade in recent_grades
+        )
+
+        embed = discord.Embed(
+            title="Recently Graded Assignments",
+            description=grades_list,
+            color=discord.Color.green(),
+        )
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 # Preferences Button
 class PreferencesButton(Button):

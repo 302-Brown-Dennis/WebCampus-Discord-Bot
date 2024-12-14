@@ -203,3 +203,76 @@ def fetch_upcoming_assignments(course_ids):
 
     return upcoming_assignments
 
+def fetch_recent_grades(course_id):
+    endpoint = f"{CANVAS_API_URL}/courses/{course_id}/students/submissions"
+    submissions = make_api_request(endpoint)
+
+    if not submissions:
+        return []
+
+    recent_grades = []
+    three_days_ago = datetime.now(pytz.utc) - timedelta(days=3)
+
+    for submission in submissions:
+        graded_at_str = submission.get("graded_at")
+        if graded_at_str:
+            graded_at = datetime.strptime(graded_at_str, "%Y-%m-%dT%H:%M:%SZ")
+            graded_at = pytz.utc.localize(graded_at)
+
+            if graded_at >= three_days_ago:
+                assignment_id = submission.get("assignment_id")
+                assignment_name = get_assignment_name(course_id, assignment_id)
+
+                user_id = submission.get("user_id")
+                student_name = get_student_name(user_id)
+
+                grade = submission.get("grade")
+                score = submission.get("score", 0)
+
+                # Fetch max points for the assignment
+                max_points = get_assignment_max_points(course_id, assignment_id)
+                formatted_grade = f"{score}/{max_points}" if max_points else grade
+
+                comments = submission.get('submission_comments', [])
+
+                # Fetch comments if not included
+                if not comments:
+                    comments = fetch_submission_comments(course_id, submission['assignment_id'], submission['user_id'])
+
+                # Format and send to Discord
+                formatted_comments = "\n".join(
+                    f"- {comment['author_name']} ({comment['created_at']}): {comment['comment']}"
+                    for comment in comments
+                ) or "No comments"
+
+                link = submission.get("preview_url", "")
+
+                recent_grades.append({
+                    "assignment_name": assignment_name,
+                    "student_name": student_name,
+                    "grade": formatted_grade,
+                    "comments": formatted_comments,
+                    "link": link
+                })
+
+    return recent_grades
+
+def get_assignment_name(course_id, assignment_id):
+    endpoint = f"{CANVAS_API_URL}/courses/{course_id}/assignments/{assignment_id}"
+    assignment_data = make_api_request(endpoint)
+    return assignment_data.get("name", "Unnamed Assignment")
+
+def get_student_name(user_id):
+    endpoint = f"{CANVAS_API_URL}/users/{user_id}"
+    user_data = make_api_request(endpoint)
+    return user_data.get("name", "Unknown Student")
+
+def get_assignment_max_points(course_id, assignment_id):
+    endpoint = f"{CANVAS_API_URL}/courses/{course_id}/assignments/{assignment_id}"
+    assignment_data = make_api_request(endpoint)
+    return assignment_data.get("points_possible", 0)
+
+def fetch_submission_comments(course_id, assignment_id, user_id):
+    endpoint = f"{CANVAS_API_URL}/courses/{course_id}/assignments/{assignment_id}/submissions/{user_id}"
+    submission = make_api_request(endpoint)
+    return submission.get('submission_comments', []) if submission else []
