@@ -38,12 +38,9 @@ async def on_guild_join(guild):
     if default_channel:
         help_message = (
             f"Hello, {guild.name}! 👋\n"
-            "I'm your new bot! Here are some commands to get you started:\n"
+            "I'm your new bot!\n"
             "```\n"
-            "!set_preferences <options> - Set notification preferences (grades, announcements, messages.)\n"
-            "!view_preferences - View the current preferences for this channel\n"
-            "!available_preferences - List the available preferences you can set for a channel\n"
-            "!help - Show this help message\n"
+            "Type !menu to get started!\n"
             "```\n"
             "To get started, try `!set_preferences grades announcements`"
         )
