@@ -338,6 +338,11 @@ class ViewUpcomingAssignmentsButton(Button):
             )
             return
 
+        # Sort assignments by due date
+        upcoming_assignments.sort(
+            key=lambda x: x['due_date']
+        )
+
         # Format the upcoming assignments for display
         assignments_list = "\n".join(
             f"- {assignment['assignment']} (Due: {assignment['due_date']}) for Class: {au.get_course_by_id(assignment['course'])}, Link: {assignment['link']}"
@@ -345,7 +350,7 @@ class ViewUpcomingAssignmentsButton(Button):
         )
 
         await interaction.response.send_message(
-            f"Here are your upcoming assignments due within the next week:\n{assignments_list}",
+            f"Here are your upcoming assignments due within the next week (sorted by due date):\n{assignments_list}",
             ephemeral=True,
         )
 
