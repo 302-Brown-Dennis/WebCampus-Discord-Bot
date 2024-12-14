@@ -217,6 +217,7 @@ class Commands(commands.Cog):
             title="Main Menu",
             description=(
                 "Welcome to the bot! Use the buttons below to navigate:\n"
+                "- View Upcoming Assignments"
                 "- Grades\n"
                 "- Preferences\n"
                 "- Classes"

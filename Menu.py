@@ -292,6 +292,7 @@ class BackToMenuButton(Button):
             title="Main Menu",
             description=(
                 "Welcome to the bot! Use the buttons below to navigate:\n"
+                "- View Upcoming Assignments"
                 "- Grades\n"
                 "- Preferences\n"
                 "- Classes"
