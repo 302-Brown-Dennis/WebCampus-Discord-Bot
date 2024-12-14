@@ -189,12 +189,19 @@ class ViewClassesButton(Button):
         self.bot = bot
 
     async def callback(self, interaction: discord.Interaction):
+        # Fetch the current classes
+        course_names = au.get_course_names()
+        if not course_names:
+            await interaction.response.send_message(
+                "No classes found. Please make sure you have enrolled in courses and synced data.",
+                ephemeral=True,
+            )
+            return
+
+        # Format the class list
+        classes_list = "\n".join(f"- {course}" for course in course_names)
         await interaction.response.send_message(
-            "Your current classes are:\n"
-            "- CS 420 Human Computer Interaction\n"
-            "- CS 457 Database Management Systems\n"
-            "- CS 458 Introduction to Data Mining\n"
-            "- CPE 470 Auto Mobile Robots",
+            f"Your current classes are:\n{classes_list}",
             ephemeral=True,
         )
 
