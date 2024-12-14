@@ -42,7 +42,6 @@ async def on_guild_join(guild):
             "```\n"
             "Type !menu to get started!\n"
             "```\n"
-            "To get started, try `!set_preferences grades announcements`"
         )
         await default_channel.send(help_message)
 
