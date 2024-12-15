@@ -79,47 +79,48 @@ def fetch_course_files(course_id):
 # Tasks for notifications
 @tasks.loop(minutes=1)
 async def announce_grades():
-    for course_id in au.get_course_ids():
-        submissions = fetch_graded_assignments(course_id)
-        if not submissions:
-            return
 
-        for submission in submissions:
-            if submission['id'] not in seen_grades and submission.get('grade'):
-                seen_grades.add(submission['id'])
+    # Notify users based on preferences
+    guild = bot.get_guild(DISCORD_SERVER_ID)
+    if guild:
+        for member in guild.members:
+            if member.bot:
+                continue
 
-                # Get assignment details
-                assignment_id = submission.get("assignment_id")
-                assignment_name = au.get_assignment_name(course_id, assignment_id)
-                user_id = submission.get("user_id")
-                student_name = au.get_student_name(user_id)
-                grade = submission.get('grade', "No Grade")
-                max_points = au.get_assignment_max_points(course_id, assignment_id)
-                formatted_grade = f"{grade}/{max_points}" if max_points else grade
-                comments = submission.get('submission_comments', [])
+            # Check user for grade notifications
+            user_preferences = bot.user_preferences.get(member.id, [])
+            if "Grades" in user_preferences:
+                for course_id in au.get_course_ids():
+                    submissions = fetch_graded_assignments(course_id)
+                    if not submissions:
+                        return
 
-                # Fetch comments if not included
-                if not comments:
-                    comments = au.fetch_submission_comments(course_id, assignment_id, user_id)
+                    for submission in submissions:
+                        if submission['id'] not in seen_grades and submission.get('grade'):
+                            seen_grades.add(submission['id'])
 
-                # Format the comments
-                formatted_comments = "\n".join(
-                    f"- {comment['author_name']} at ({comment['created_at']}): {comment['comment']}"
-                    for comment in comments
-                ) or "No comments"
+                            # Get assignment details
+                            assignment_id = submission.get("assignment_id")
+                            assignment_name = au.get_assignment_name(course_id, assignment_id)
+                            user_id = submission.get("user_id")
+                            student_name = au.get_student_name(user_id)
+                            grade = submission.get('grade', "No Grade")
+                            max_points = au.get_assignment_max_points(course_id, assignment_id)
+                            formatted_grade = f"{grade}/{max_points}" if max_points else grade
+                            comments = submission.get('submission_comments', [])
 
-                link = submission.get("preview_url", "")
+                            # Fetch comments if not included
+                            if not comments:
+                                comments = au.fetch_submission_comments(course_id, assignment_id, user_id)
 
-                # Notify users based on preferences
-                guild = bot.get_guild(DISCORD_SERVER_ID)
-                if guild:
-                    for member in guild.members:
-                        if member.bot:
-                            continue
+                            # Format the comments
+                            formatted_comments = "\n".join(
+                                f"- {comment['author_name']} at ({comment['created_at']}): {comment['comment']}"
+                                for comment in comments
+                            ) or "No comments"
 
-                        # Check user for grade notifications
-                        user_preferences = bot.user_preferences.get(member.id, [])
-                        if "Grades" in user_preferences:
+                            link = submission.get("preview_url", "")
+
                             try:
                                 # Send a DM to the user
                                 await member.send(
@@ -129,37 +130,39 @@ async def announce_grades():
                                     f"**Grade:** {formatted_grade}\n"
                                     f"**Comments:**\n{formatted_comments}\n"
                                     f"**Link:**\n{link}\n"
-                                )
+                                    )
                             except Exception as e:
                                 print(f"Could not send DM to {member}: {e}")
 
 @tasks.loop(minutes=1)
 async def notify_inbox_messages():
-    messages = fetch_inbox_messages()
-    if not messages:
-        return
+            
+    # Notify users based on their preferences
+    guild = bot.get_guild(DISCORD_SERVER_ID)
+    if guild:
+        for member in guild.members:
+            if member.bot:
+                continue
 
-    for message in messages:
-        if message['id'] not in seen_messages:
-            seen_messages.add(message['id'])
+            # Get the users preferences
+            user_preferences = bot.user_preferences.get(member.id, [])
 
-            # Extract message details
-            sender_name = message.get('participants', [{}])[0].get('name', "Unknown Sender")
-            subject = message.get('subject', "No Subject")
-            body = message.get('last_message', "No Content")
+            # Check if the user wants inbox message notifications
+            if "Messages" in user_preferences:
 
-            # Notify users based on their preferences
-            guild = bot.get_guild(DISCORD_SERVER_ID)
-            if guild:
-                for member in guild.members:
-                    if member.bot:
-                        continue
+                messages = fetch_inbox_messages()
+                if not messages:
+                    return
 
-                    # Get the users preferences
-                    user_preferences = bot.user_preferences.get(member.id, [])
+                for message in messages:
+                    if message['id'] not in seen_messages:
+                        seen_messages.add(message['id'])
 
-                    # Check if the user wants inbox message notifications
-                    if "Messages" in user_preferences:
+                        # Extract message details
+                        sender_name = message.get('participants', [{}])[0].get('name', "Unknown Sender")
+                        subject = message.get('subject', "No Subject")
+                        body = message.get('last_message', "No Content")
+
                         try:
                             # Send a DM to the user
                             await member.send(
@@ -167,7 +170,7 @@ async def notify_inbox_messages():
                                 f"**From:** {sender_name}\n"
                                 f"**Subject:** {subject}\n"
                                 f"**Message:** {body}"
-                            )
+                                )
                         except Exception as e:
                             print(f"Could not send DM to {member}: {e}")
 
@@ -194,26 +197,14 @@ async def notify_new_files():
                 file_url = file.get("url", "No URL")
                 upload_time = file.get("created_at", "Unknown Time")
 
-                # Fetch all members of the server
-                guild = bot.get_guild(DISCORD_SERVER_ID)
-                print(guild)
-                if guild:
-                    for member in guild.members:
-                        # Skip bots
-                        print(member)
-                        if member.bot:
-                            continue
-                        
-                        try:
-                            # Send DM to the member
-                            await member.send(
-                                f"📂 **New File Uploaded!**\n"
-                                f"**File Name:** {file_name}\n"
-                                f"**Uploaded At:** {upload_time}\n"
-                                f"**Download Link:** [Click here]({file_url})"
-                            )
-                        except Exception as e:
-                            print(f"Could not send DM to {member}: {e}")
+                channel = bot.get_channel(DISCORD_CHANNEL_ID)
+                if channel:
+                    await channel.send(
+                        f"📂 **New File Uploaded!**\n"
+                        f"**File Name:** {file_name}\n"
+                        f"**Uploaded At:** {upload_time}\n"
+                        f"**Download Link:** [Click here]({file_url})"
+                    ) 
                     
 
 # Event: Bot is ready
@@ -221,9 +212,9 @@ async def notify_new_files():
 async def on_ready():
     print(f"Logged in as {bot.user}!")
     await bot.add_cog(Commands(bot))
-    #announce_grades.start()
+    announce_grades.start()
     notify_inbox_messages.start()
-    #notify_new_files.start()
+    notify_new_files.start()
 
 # Run the bot
 bot.run(BOT_TOKEN)

@@ -198,26 +198,16 @@ class Commands(commands.Cog):
             # Catch any other HTTP-related exceptions (e.g., if Discord blocks DMs)
             await ctx.send(f"❌ Could not send a DM to {ctx.author.name}. Error: {str(e)}")
 
-    @commands.command()
-    async def send_image(self, ctx):
-        """
-        Sends a local image file to the channel.
-        """
-        file = discord.File(r"Personal Projects\CampusDiscordBot\WebCampus-Discord-Bot\WhiskerPlot.PNG",
-                            filename="WhiskerPlot.PNG")  # Replace with your image path
-        await ctx.send("Here are the grade comparisons for assignment 1", file=file)
 
     # Command: Start Menu
     @commands.command(name="menu")
     async def menu(self, ctx):
-        """
-        Opens the main menu with buttons.
-        """
+
         embed = discord.Embed(
             title="Main Menu",
             description=(
                 "Welcome to the bot! Use the buttons below to navigate:\n"
-                "- View Upcoming Assignments"
+                "- View Upcoming Assignments\n"
                 "- Grades\n"
                 "- Preferences\n"
                 "- Classes"
