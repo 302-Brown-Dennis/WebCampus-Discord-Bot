@@ -176,13 +176,16 @@ def fetch_upcoming_assignments(course_ids):
     for course_id in course_ids:
         # Fetch assignments for each course
         endpoint = f"{CANVAS_API_URL}/courses/{course_id}/assignments"
-        assignments = make_api_request(endpoint)
+        params = {"include[]": "submission"}
+        assignments = make_api_request(endpoint, params)
 
         if assignments:
             # Filter assignments that are due within the next week
             for assignment in assignments:
                 due_date_str = assignment.get("due_at")
-                if due_date_str:
+                submission = assignment.get("submission", {})
+
+                if submission.get("grade") is None and submission.get("submitted_at") is None and due_date_str:
                     # Parse the due date from Canvas in UTC
                     due_date_utc = datetime.strptime(due_date_str, "%Y-%m-%dT%H:%M:%SZ")
                     due_date_utc = pytz.utc.localize(due_date_utc)  # Localize the UTC time

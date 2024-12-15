@@ -4,9 +4,13 @@ from dotenv import load_dotenv
 import discord
 from discord.ext import tasks, commands
 import requests
+from datetime import datetime
+import pytz
 
 from cogs.commands import Commands
 import ApiUtil as au
+
+import re
 
 # Load environment variables
 load_dotenv()
@@ -26,6 +30,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 seen_grades = set()
 seen_messages = set()
 seen_files = set()
+seen_announcements = set()
 bot.user_preferences = {}
 # Event: When the bot joins a new server
 @bot.event
@@ -75,30 +80,46 @@ def fetch_course_files(course_id):
     endpoint = f"{CANVAS_API_URL}/courses/{course_id}/files"
     params = {"sort": "created_at", "order": "desc"}
     return make_api_request(endpoint, params)
-
+def fetch_announcements(course_id):
+    endpoint = f"{CANVAS_API_URL}/announcements"
+    params = {"context_codes[]": f"course_{course_id}", "per_page": 5}
+    return make_api_request(endpoint, params)
+def clean_html(raw_html):
+    """Remove HTML tags from a string."""
+    clean_text = re.sub(r"<.*?>", "", raw_html)
+    return clean_text
+def format_posted_time(posted_at):
+    user_timezone = pytz.timezone("US/Pacific")
+    dt = datetime.strptime(posted_at, "%Y-%m-%dT%H:%M:%SZ")
+    due_date_utc = pytz.utc.localize(dt)
+    due_date_local = due_date_utc.astimezone(user_timezone)
+    return due_date_local.strftime("%m/%d/%Y at %I:%M %p")
 # Tasks for notifications
 @tasks.loop(minutes=1)
 async def announce_grades():
 
+    print("Checking for new grades!")
     # Notify users based on preferences
     guild = bot.get_guild(DISCORD_SERVER_ID)
     if guild:
         for member in guild.members:
+            #print(member)
             if member.bot:
                 continue
 
             # Check user for grade notifications
             user_preferences = bot.user_preferences.get(member.id, [])
-            if "Grades" in user_preferences:
-                for course_id in au.get_course_ids():
-                    submissions = fetch_graded_assignments(course_id)
-                    if not submissions:
-                        return
+            
+            for course_id in au.get_course_ids():
+                submissions = fetch_graded_assignments(course_id)
+                
+                if not submissions:
+                    continue
 
-                    for submission in submissions:
-                        if submission['id'] not in seen_grades and submission.get('grade'):
-                            seen_grades.add(submission['id'])
-
+                for submission in submissions:
+                    if submission['id'] not in seen_grades and submission.get('grade'):
+                        seen_grades.add(submission['id'])
+                        if "Grades" in user_preferences:
                             # Get assignment details
                             assignment_id = submission.get("assignment_id")
                             assignment_name = au.get_assignment_name(course_id, assignment_id)
@@ -115,7 +136,7 @@ async def announce_grades():
 
                             # Format the comments
                             formatted_comments = "\n".join(
-                                f"- {comment['author_name']} at ({comment['created_at']}): {comment['comment']}"
+                                f"- {comment['author_name']} at {format_posted_time(comment['created_at'])}: {comment['comment']}"
                                 for comment in comments
                             ) or "No comments"
 
@@ -136,7 +157,8 @@ async def announce_grades():
 
 @tasks.loop(minutes=1)
 async def notify_inbox_messages():
-            
+    
+    print("Checking for new messages!")
     # Notify users based on their preferences
     guild = bot.get_guild(DISCORD_SERVER_ID)
     if guild:
@@ -147,16 +169,15 @@ async def notify_inbox_messages():
             # Get the users preferences
             user_preferences = bot.user_preferences.get(member.id, [])
 
-            # Check if the user wants inbox message notifications
-            if "Messages" in user_preferences:
+            messages = fetch_inbox_messages()
+            if not messages:
+                continue
 
-                messages = fetch_inbox_messages()
-                if not messages:
-                    return
-
-                for message in messages:
-                    if message['id'] not in seen_messages:
-                        seen_messages.add(message['id'])
+            for message in messages:
+                if message['id'] not in seen_messages:
+                    seen_messages.add(message['id'])
+                    # Check if the user wants inbox message notifications
+                    if "Messages" in user_preferences:
 
                         # Extract message details
                         sender_name = message.get('participants', [{}])[0].get('name', "Unknown Sender")
@@ -177,6 +198,7 @@ async def notify_inbox_messages():
 @tasks.loop(minutes=1)
 async def notify_new_files():
 
+    print("Checking for new files!")
     course_ids = au.get_course_ids()
     
     for course_id in course_ids:
@@ -205,7 +227,47 @@ async def notify_new_files():
                         f"**Uploaded At:** {upload_time}\n"
                         f"**Download Link:** [Click here]({file_url})"
                     ) 
-                    
+@tasks.loop(minutes=1)
+async def check_new_announcements():
+
+    print("Checking for new announcements!")
+    # Notify users based on preferences
+    guild = bot.get_guild(DISCORD_SERVER_ID)  # Replace SERVER_ID with your server's ID
+    if guild:
+        for member in guild.members:
+            if member.bot:
+                continue
+                        
+            # Check if the user has opted in for announcements
+            user_preferences = bot.user_preferences.get(member.id, [])
+
+            course_ids = au.get_course_ids()  # Retrieve all course IDs
+            for course_id in course_ids:
+                course_name = au.get_course_by_id(course_id)
+                # Fetch announcements for the course
+                announcements = fetch_announcements(course_id)
+                if not announcements:
+                    continue
+
+                for announcement in announcements:
+                    if announcement['id'] not in seen_announcements:
+                        seen_announcements.add(announcement['id'])
+                        if "Announcements" in user_preferences:
+                            # Extract announcement details
+                            title = announcement.get("title", "No Title")
+                            raw_message = announcement.get("message", "No Content")
+                            message = clean_html(raw_message)
+                            posted_at = announcement.get("posted_at", "Unknown Time")
+                            formatted_time = format_posted_time(posted_at)
+                            try:
+                                await member.send(
+                                    f"📢 **New Announcement from {course_name}!**\n"
+                                    f"**Title:** {title}\n"
+                                    f"**Message:** {message}\n"
+                                    f"**Posted At:** {formatted_time}"
+                                    )
+                            except Exception as e:
+                                print(f"Could not send DM to {member}: {e}")                  
 
 # Event: Bot is ready
 @bot.event
@@ -215,6 +277,7 @@ async def on_ready():
     announce_grades.start()
     notify_inbox_messages.start()
     notify_new_files.start()
+    check_new_announcements.start()
 
 # Run the bot
 bot.run(BOT_TOKEN)

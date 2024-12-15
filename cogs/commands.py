@@ -7,6 +7,7 @@ import ApiUtil as au
 class Commands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+        self.user = bot.user
         self.channel_preferences = {}
 
     @commands.command()
@@ -23,7 +24,24 @@ class Commands(commands.Cog):
         """
         deleted = await ctx.channel.purge(limit=amount + 1)
         await ctx.send(f'Deleted {len(deleted)} messages.', delete_after=2)
+    @commands.command()
+    async def clear_dm(self, ctx, amount: int):
+        """
+        Clears the specified number of bot messages in the current DM channel.
+        Usage: !clear_dm <amount> where amount is an int for number of messages to delete.
+        """
+        if isinstance(ctx.channel, discord.DMChannel):  # Check if the command is in a DM
+            messages_to_delete = []
+            async for message in ctx.channel.history(limit=amount + 1):
+                if message.author == self.bot.user:  # Only delete bot messages
+                    messages_to_delete.append(message)
 
+            for message in messages_to_delete:
+                await message.delete()
+
+            await ctx.send(f"Cleared {len(messages_to_delete)} bot messages in this DM.", delete_after=2)
+        else:
+            await ctx.send("This command can only be used in DMs.")
     # DEV gets number of message in channel
     @commands.command()
     async def count_messages(self, ctx, channel: discord.TextChannel = None):
