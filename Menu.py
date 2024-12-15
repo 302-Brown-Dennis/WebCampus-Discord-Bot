@@ -109,50 +109,55 @@ class GetRecentGrades(Button):
         self.select_menu = select_menu
 
     async def callback(self, interaction: discord.Interaction):
-        # Fetch selected course or all courses
-        selected_class = self.select_menu.values[0] if self.select_menu.values else None
-        course_ids = au.get_course_ids()
-        course_names = au.get_course_names()
-        recent_grades = []
+        try:
+            await interaction.response.defer(ephemeral=True)  # Keeps the interaction alive
 
-        if selected_class:
-            # Fetch course ID for selected class
-            course_id = None
-            for idx, name in enumerate(course_names):
-                if name == selected_class:
-                    course_id = course_ids[idx]
-                    break
-            if course_id:
-                recent_grades = au.fetch_recent_grades(course_id)
-        else:
-            # Fetch grades for all courses
-            for course_id in course_ids:
-                recent_grades.extend(au.fetch_recent_grades(course_id))
+            # Fetch selected course or all courses
+            selected_class = self.select_menu.values[0] if self.select_menu.values else None
+            course_ids = au.get_course_ids()
+            course_names = au.get_course_names()
+            recent_grades = []
 
-        if not recent_grades:
-            await interaction.response.send_message(
-                "No recent grades were found within the past 3 days.",
-                ephemeral=True,
+            if selected_class:
+                # Fetch course ID for selected class
+                course_id = None
+                for idx, name in enumerate(course_names):
+                    if name == selected_class:
+                        course_id = course_ids[idx]
+                        break
+                if course_id:
+                    recent_grades = au.fetch_recent_grades(course_id)
+            else:
+                # Fetch grades for all courses
+                for course_id in course_ids:
+                    recent_grades.extend(au.fetch_recent_grades(course_id))
+
+            if not recent_grades:
+                await interaction.followup.send(
+                    "No recent grades were found within the past 3 days.",
+                    ephemeral=True,
+                )
+                return
+
+            # Format recent grades
+            grades_list = "\n".join(
+                f"**{grade['assignment_name']}**\n"
+                f"Student: {grade['student_name']}\n"
+                f"Grade: {grade['grade']}\n"
+                f"Graded at: {grade['graded_at']}\n"
+                f"[View Assignment]({grade['link']})\n"
+                for grade in recent_grades
             )
-            return
 
-        # Format recent grades
-        grades_list = "\n".join(
-            f"**{grade['assignment_name']}**\n"
-            f"Student: {grade['student_name']}\n"
-            f"Grade: {grade['grade']}\n"
-            f"Graded at: {grade['graded_at']}\n"
-            f"[View Assignment]({grade['link']})\n"
-            for grade in recent_grades
-        )
+            embed = discord.Embed(
+                title="Recently Graded Assignments",
+                description=grades_list,
+                color=discord.Color.green(),
+            )
 
-        embed = discord.Embed(
-            title="Recently Graded Assignments",
-            description=grades_list,
-            color=discord.Color.green(),
-        )
-
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+            await interaction.followup.send(embed=embed, ephemeral=True)
+        except discord.errors.NotFound:
+            print("Interaction failed: Unknown interaction (likely expired).")
 
 # Preferences Button
 class PreferencesButton(Button):
